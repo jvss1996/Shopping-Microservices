@@ -1,15 +1,18 @@
 package com.shekhawat.order_service;
 
+import com.shekhawat.order_service.stubs.InventoryClientStub;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import io.restassured.RestAssured;
+import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
 import org.testcontainers.containers.MySQLContainer;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureWireMock(port = 0) // port 0: picking up random port for wiremock
 class OrderServiceApplicationTests {
 	@ServiceConnection
 	static MySQLContainer mySQLContainer = new MySQLContainer("mysql:8.3.0");
@@ -30,11 +33,14 @@ class OrderServiceApplicationTests {
 	void shouldSubmitOrder() {
 		String submitOrder = """
 				{
-					"skuCode": "Iphone16",
+					"skuCode": "iPhone_16",
 					"price": 1000,
 					"quantity": 1
 				}
 				""";
+
+		InventoryClientStub.stubInventoryCall("iPhone_16", 1);
+
 		var responseString = RestAssured.given()
 				.contentType("application/json")
 				.body(submitOrder)
