@@ -2,10 +2,12 @@ package com.shekhawat.order_service.service;
 
 import com.shekhawat.order_service.client.InventoryClient;
 import com.shekhawat.order_service.dto.OrderRequest;
+import com.shekhawat.order_service.event.OrderPlacedEvent;
 import com.shekhawat.order_service.model.Order;
 import com.shekhawat.order_service.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -16,6 +18,7 @@ import java.util.UUID;
 public class OrderService {
     private final OrderRepository orderRepository;
     private final InventoryClient inventoryClient;
+    private final KafkaTemplate<String, OrderPlacedEvent> kafkaTemplate;
     public void placeOrder(OrderRequest orderRequest) {
         var isInStock = inventoryClient.isInStock(orderRequest.skuCode(), orderRequest.quantity());
 
@@ -29,6 +32,12 @@ public class OrderService {
             // save Order to order repository
             orderRepository.save(order);
             log.info("Order placed successfully");
+
+            // Send message to kafka topic
+            OrderPlacedEvent orderPlacedEvent = new OrderPlacedEvent(order.getOrderNumber());
+            log.info("Starting sending OrderPlacedEvent: {}", orderPlacedEvent);
+            kafkaTemplate.send("order-placed", orderPlacedEvent);
+            log.info("Ending sending OrderPlacedEvent: {}", orderPlacedEvent);
         } else {
             throw new RuntimeException("Product with skuCode " + orderRequest.skuCode() + " is out of stock");
         }
